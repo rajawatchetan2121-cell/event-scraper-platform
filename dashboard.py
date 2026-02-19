@@ -1,10 +1,9 @@
-    
 import streamlit as st
 import pandas as pd
 import openpyxl
 from scraper import fetch_events
 from storage import upsert_events
-from collections import Counter
+from sheets import sync_to_sheets   # ✅ IMPORTANT
 
 # -------------------------
 # PAGE CONFIG
@@ -26,10 +25,6 @@ st.divider()
 # SCRAPE SECTION
 # -------------------------
 
-
-st.title("🎉 Event Scraper & Analytics Dashboard")
-
-# Use dropdown instead of free text
 city = st.selectbox(
     "Select City",
     ["mumbai", "jaipur", "delhi", "bangalore", "pune"]
@@ -44,13 +39,18 @@ if scrape_btn:
         if len(events) == 0:
             st.warning("No events found for this city.")
         else:
+            # Save to Excel
             upsert_events(events)
-            st.success(f"✅ {len(events)} events scraped successfully!")
 
+            # 🔥 Sync to Google Sheets
+            sync_to_sheets()
+
+            st.success(f"✅ {len(events)} events scraped and synced successfully!")
 
 # -------------------------
 # LOAD DATA
 # -------------------------
+
 def load_data():
     try:
         wb = openpyxl.load_workbook("events.xlsx")
@@ -72,6 +72,7 @@ df = load_data()
 # -------------------------
 # ANALYTICS SECTION
 # -------------------------
+
 if not df.empty:
 
     st.subheader("📊 Dashboard Analytics")
@@ -108,4 +109,3 @@ if not df.empty:
 
 else:
     st.info("No data found. Please scrape events first.")
-
