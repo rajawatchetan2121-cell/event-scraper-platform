@@ -1,5 +1,4 @@
 import requests
-from bs4 import BeautifulSoup
 from datetime import datetime
 
 CATEGORIES = [
@@ -20,7 +19,8 @@ def fetch_events(city: str):
     seen_links = set()
 
     headers = {
-        "User-Agent": "Mozilla/5.0"
+        "User-Agent": "Mozilla/5.0",
+        "Accept": "application/json"
     }
 
     for category in CATEGORIES:
@@ -30,32 +30,28 @@ def fetch_events(city: str):
 
         try:
             response = requests.get(url, headers=headers, timeout=10)
-            soup = BeautifulSoup(response.text, "html.parser")
+            
+            # Look for embedded JSON data
+            if "application/json" not in response.headers.get("Content-Type", ""):
+                continue
 
-            cards = soup.select("div.dds-w-full.dds-h-full.item-cards")
+            data = response.json()
 
-            for card in cards:
+            if "events" not in data:
+                continue
 
-                parent = card.find_parent("a")
-                if not parent:
-                    continue
+            for item in data["events"]:
 
-                link = parent.get("href")
+                link = item.get("eventUrl")
 
                 if link in seen_links:
                     continue
                 seen_links.add(link)
 
-                title = card.find("h5")
-                spans = card.find_all("span")
-
-                date = spans[0].text.strip() if len(spans) > 0 else ""
-                venue = spans[1].text.strip() if len(spans) > 1 else ""
-
                 events.append({
-                    "event_name": title.text.strip() if title else "",
-                    "date": date,
-                    "venue": venue,
+                    "event_name": item.get("title", ""),
+                    "date": item.get("eventDate", ""),
+                    "venue": item.get("venueName", ""),
                     "city": city,
                     "category": category,
                     "url": link,
