@@ -21,7 +21,7 @@ def sync_to_sheets():
 
         # Open sheet by URL (SAFER than name)
         sheet = client.open_by_url(
-            "PASTE_YOUR_FULL_GOOGLE_SHEET_URL_HERE"
+            "https://docs.google.com/spreadsheets/d/1Ym9JovBERgKiauolwovMP8MlC1Gr2VHYxOs7S3jHQg8/edit?gid=0#gid=0"
         ).sheet1
 
         # Load Excel
@@ -42,3 +42,4 @@ def sync_to_sheets():
 
     except Exception as e:
         print("ERROR updating sheet:", e)
+
