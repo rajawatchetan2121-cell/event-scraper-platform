@@ -1,51 +1,58 @@
 import streamlit as st
 import pandas as pd
 import openpyxl
-from scraper import fetch_events
-from storage import upsert_events
-from sheets import sync_to_sheets   # ✅ IMPORTANT
+import os
+
+# Try importing scraper (will fail in cloud if selenium removed)
+try:
+    from scraper import fetch_events
+    from storage import upsert_events
+    LOCAL_MODE = True
+except:
+    LOCAL_MODE = False
+
 
 # -------------------------
 # PAGE CONFIG
 # -------------------------
 st.set_page_config(
-    page_title="Event Scraper & Analytics Platform",
+    page_title="Event Analytics Dashboard",
     layout="wide"
 )
 
-# -------------------------
-# HEADER
-# -------------------------
-st.title("🎉 Event Scraper & Analytics Platform")
-st.markdown("Scrape, Store, Sync & Analyze Events Data")
+st.title("🎉 Event Scraper & Analytics Dashboard")
 
 st.divider()
 
 # -------------------------
-# SCRAPE SECTION
+# SCRAPE SECTION (ONLY LOCAL)
 # -------------------------
 
-city = st.selectbox(
-    "Select City",
-    ["mumbai", "jaipur", "delhi", "bangalore", "pune"]
-)
+if LOCAL_MODE:
 
-scrape_btn = st.button("Scrape Events")
+    st.subheader("🔄 Run Scraper (Local Only)")
 
-if scrape_btn:
-    with st.spinner("Scraping events... Please wait..."):
-        events = fetch_events(city)
+    city = st.selectbox(
+        "Select City",
+        ["mumbai", "jaipur", "delhi", "bangalore", "pune"]
+    )
 
-        if len(events) == 0:
-            st.warning("No events found for this city.")
-        else:
-            # Save to Excel
-            upsert_events(events)
+    scrape_btn = st.button("Scrape Events")
 
-            # 🔥 Sync to Google Sheets
-            sync_to_sheets()
+    if scrape_btn:
+        with st.spinner("Scraping events... Please wait..."):
+            events = fetch_events(city)
 
-            st.success(f"✅ {len(events)} events scraped and synced successfully!")
+            if len(events) == 0:
+                st.warning("No events found.")
+            else:
+                upsert_events(events)
+                st.success(f"✅ {len(events)} events scraped successfully!")
+
+else:
+    st.info("Scraping is disabled in cloud environment.")
+
+st.divider()
 
 # -------------------------
 # LOAD DATA
@@ -70,7 +77,7 @@ def load_data():
 df = load_data()
 
 # -------------------------
-# ANALYTICS SECTION
+# ANALYTICS
 # -------------------------
 
 if not df.empty:
@@ -83,12 +90,10 @@ if not df.empty:
         st.metric("Total Events", len(df))
 
     with col2:
-        active_count = len(df[df["status"] == "Active"])
-        st.metric("Active Events", active_count)
+        st.metric("Active Events", len(df[df["status"] == "Active"]))
 
     with col3:
-        expired_count = len(df[df["status"] == "Expired"])
-        st.metric("Expired Events", expired_count)
+        st.metric("Expired Events", len(df[df["status"] == "Expired"]))
 
     st.divider()
 
@@ -108,4 +113,4 @@ if not df.empty:
     st.dataframe(df, use_container_width=True)
 
 else:
-    st.info("No data found. Please scrape events first.")
+    st.warning("No data available.")
