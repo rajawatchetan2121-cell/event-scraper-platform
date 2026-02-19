@@ -1,6 +1,5 @@
 import gspread
 import openpyxl
-import streamlit as st
 from google.oauth2.service_account import Credentials
 
 SCOPES = [
@@ -10,19 +9,22 @@ SCOPES = [
 
 def sync_to_sheets():
     try:
-        # ✅ Read credentials from Streamlit Secrets
-        creds_dict = st.secrets["gcp_service_account"]
+        print("Starting Google Sheets sync...")
 
-        creds = Credentials.from_service_account_info(
-            creds_dict,
+        # Load credentials from local JSON (for VS Code run)
+        creds = Credentials.from_service_account_file(
+            "service_account.json",
             scopes=SCOPES
         )
 
         client = gspread.authorize(creds)
 
-        # Make sure this name matches your Google Sheet EXACTLY
-        sheet = client.open("Event Dashboard").sheet1
+        # Open sheet by URL (SAFER than name)
+        sheet = client.open_by_url(
+            "PASTE_YOUR_FULL_GOOGLE_SHEET_URL_HERE"
+        ).sheet1
 
+        # Load Excel
         wb = openpyxl.load_workbook("events.xlsx")
         ws = wb.active
 
@@ -30,8 +32,13 @@ def sync_to_sheets():
         for row in ws.iter_rows(values_only=True):
             data.append(list(row))
 
+        # Clear existing data
         sheet.clear()
+
+        # Insert new data
         sheet.append_rows(data)
 
+        print("Google Sheet updated successfully!")
+
     except Exception as e:
-        st.error(f"Google Sheets sync failed: {e}")
+        print("ERROR updating sheet:", e)
