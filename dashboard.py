@@ -25,23 +25,28 @@ st.divider()
 # -------------------------
 # SCRAPE SECTION
 # -------------------------
-st.subheader("🔍 Scrape Events")
 
-col1, col2 = st.columns([3, 1])
 
-with col1:
-    city = st.text_input("Enter City Name", "mumbai")
+st.title("🎉 Event Scraper & Analytics Dashboard")
 
-with col2:
-    scrape_btn = st.button("Scrape")
+# Use dropdown instead of free text
+city = st.selectbox(
+    "Select City",
+    ["mumbai", "jaipur", "delhi", "bangalore", "pune"]
+)
+
+scrape_btn = st.button("Scrape Events")
 
 if scrape_btn:
-    with st.spinner("Scraping events..."):
+    with st.spinner("Scraping events... Please wait..."):
         events = fetch_events(city)
-        upsert_events(events)
-    st.success(f"✅ {len(events)} events scraped and stored successfully!")
 
-st.divider()
+        if len(events) == 0:
+            st.warning("No events found for this city.")
+        else:
+            upsert_events(events)
+            st.success(f"✅ {len(events)} events scraped successfully!")
+
 
 # -------------------------
 # LOAD DATA
@@ -103,3 +108,4 @@ if not df.empty:
 
 else:
     st.info("No data found. Please scrape events first.")
+
