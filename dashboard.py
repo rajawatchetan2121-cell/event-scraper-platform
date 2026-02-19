@@ -48,27 +48,43 @@ st.divider()
 # -------------------------
 # LOAD DATA
 # -------------------------
-def load_data():
+def load_data_from_google():
     try:
-        wb = openpyxl.load_workbook("events.xlsx")
-        ws = wb.active
+        creds_dict = st.secrets["gcp_service_account"]
 
-        data = []
-        headers = [cell.value for cell in ws[1]]
+        creds = Credentials.from_service_account_info(
+            creds_dict,
+            scopes=[
+                "https://www.googleapis.com/auth/spreadsheets",
+                "https://www.googleapis.com/auth/drive"
+            ]
+        )
 
-        for row in ws.iter_rows(min_row=2, values_only=True):
-            data.append(row)
+        client = gspread.authorize(creds)
 
-        return pd.DataFrame(data, columns=headers)
+        sheet = client.open("Event Dashboard").sheet1
 
-    except:
+        data = sheet.get_all_records()
+
+        return pd.DataFrame(data)
+
+    except Exception as e:
+        st.error(f"Failed to load data: {e}")
         return pd.DataFrame()
-
-df = load_data()
+df = load_data_from_google()
 
 # -------------------------
 # ANALYTICS SECTION
 # -------------------------
+
+if not df.empty:
+    selected_city = st.selectbox(
+        "Filter by City",
+        df["city"].unique()
+    )
+
+    df = df[df["city"] == selected_city]
+
 if not df.empty:
 
     st.subheader("📊 Dashboard Analytics")
@@ -105,3 +121,4 @@ if not df.empty:
 
 else:
     st.info("No data found. Please scrape events first.")
+
