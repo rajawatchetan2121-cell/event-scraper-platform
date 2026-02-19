@@ -1,54 +1,92 @@
-import requests
-from bs4 import BeautifulSoup
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
 from datetime import datetime
+import time
 
-BASE_URLS = [
-    "music-in-{}-book-tickets",
-    "nightlife-in-{}-book-tickets",
-    "comedy-shows-in-{}-book-tickets",
-    "sports-events-in-{}-book-tickets",
-    "performances-in-{}-book-tickets",
-    "food-drinks-in-{}-book-tickets",
-    "fests-fairs-in-{}-book-tickets",
-    "social-mixers-in-{}-book-tickets",
-    "openmics-in-{}-book-tickets"
+
+CATEGORIES = [
+    "music",
+    "nightlife",
+    "comedy-shows",
+    "sports-events",
+    "performances",
+    "food-drinks",
+    "fests-fairs",
+    "social-mixers",
+    "openmics"
 ]
 
-def fetch_events(city):
+
+def fetch_events(city: str):
+
+    options = Options()
+    options.add_argument("--headless=new")
+    options.add_argument("--disable-blink-features=AutomationControlled")
+    options.add_argument("--start-maximized")
+
+    driver = webdriver.Chrome(options=options)
+
     events = []
-    headers = {"User-Agent": "Mozilla/5.0"}
+    seen_links = set()
 
-    for slug in BASE_URLS:
-        url = f"https://www.district.in/events/{slug.format(city.lower())}"
-        
+    for category in CATEGORIES:
+
+        slug = f"{category}-in-{city.lower()}-book-tickets"
+        url = f"https://www.district.in/events/{slug}"
+
+        print(f"Opening → {url}")
+
         try:
-            response = requests.get(url, headers=headers, timeout=10)
-            soup = BeautifulSoup(response.text, "html.parser")
+            driver.get(url)
+            time.sleep(4)
 
-            cards = soup.select("div.dds-w-full.dds-h-full.item-cards")
+            # Scroll for lazy loading
+            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+            time.sleep(2)
+
+            cards = driver.find_elements(
+                By.CSS_SELECTOR,
+                "div.dds-w-full.dds-h-full.item-cards"
+            )
+
+            print(f"{category}: {len(cards)} cards")
 
             for card in cards:
-                parent = card.find_parent("a")
-                link = parent["href"] if parent else ""
+                try:
+                    parent = card.find_element(By.XPATH, "./ancestor::a")
+                    link = parent.get_attribute("href")
 
-                title = card.find("h5")
-                spans = card.find_all("span")
+                    if link in seen_links:
+                        continue
+                    seen_links.add(link)
 
-                date = spans[0].text.strip() if len(spans) > 0 else ""
-                venue = spans[1].text.strip() if len(spans) > 1 else ""
+                    title = card.find_element(By.TAG_NAME, "h5").text
+                    spans = card.find_elements(By.TAG_NAME, "span")
 
-                events.append({
-                    "event_name": title.text.strip() if title else "",
-                    "date": date,
-                    "venue": venue,
-                    "city": city,
-                    "category": "Event",
-                    "url": link,
-                    "status": "Active",
-                    "last_seen": datetime.now().strftime("%Y-%m-%d %H:%M")
-                })
+                    date = spans[0].text if len(spans) > 0 else ""
+                    venue = spans[1].text if len(spans) > 1 else ""
+
+                    events.append({
+                        "event_name": title,
+                        "date": date,
+                        "venue": venue,
+                        "city": city,
+                        "category": category,
+                        "url": link,
+                        "status": "Active",
+                        "last_seen": datetime.now().strftime("%Y-%m-%d %H:%M")
+                    })
+
+                except:
+                    continue
 
         except:
             continue
+
+    driver.quit()
+
+    print(f"\nTotal unique events: {len(events)}")
 
     return events
