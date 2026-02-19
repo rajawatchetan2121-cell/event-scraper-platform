@@ -1,63 +1,53 @@
 import streamlit as st
 import pandas as pd
 import openpyxl
-import os
-
-# Try importing scraper (will fail in cloud if selenium removed)
-try:
-    from scraper import fetch_events
-    from storage import upsert_events
-    LOCAL_MODE = True
-except:
-    LOCAL_MODE = False
+from scraper import fetch_events
+from storage import upsert_events
+from collections import Counter
+import gspread
+from google.oauth2.service_account import Credentials
 
 
 # -------------------------
 # PAGE CONFIG
 # -------------------------
 st.set_page_config(
-    page_title="Event Analytics Dashboard",
+    page_title="Event Scraper & Analytics Platform",
     layout="wide"
 )
 
-st.title("🎉 Event Scraper & Analytics Dashboard")
+# -------------------------
+# HEADER
+# -------------------------
+st.title("🎉 Event Scraper & Analytics Platform")
+st.markdown("Scrape, Store, Sync & Analyze Events Data")
 
 st.divider()
 
 # -------------------------
-# SCRAPE SECTION (ONLY LOCAL)
+# SCRAPE SECTION
 # -------------------------
+st.subheader("🔍 Scrape Events")
 
-if LOCAL_MODE:
+col1, col2 = st.columns([3, 1])
 
-    st.subheader("🔄 Run Scraper (Local Only)")
+with col1:
+    city = st.text_input("Enter City Name", "mumbai")
 
-    city = st.selectbox(
-        "Select City",
-        ["mumbai", "jaipur", "delhi", "bangalore", "pune"]
-    )
+with col2:
+    scrape_btn = st.button("Scrape")
 
-    scrape_btn = st.button("Scrape Events")
-
-    if scrape_btn:
-        with st.spinner("Scraping events... Please wait..."):
-            events = fetch_events(city)
-
-            if len(events) == 0:
-                st.warning("No events found.")
-            else:
-                upsert_events(events)
-                st.success(f"✅ {len(events)} events scraped successfully!")
-
-else:
-    st.info("Scraping is disabled in cloud environment.")
+if scrape_btn:
+    with st.spinner("Scraping events..."):
+        events = fetch_events(city)
+        upsert_events(events)
+    st.success(f"✅ {len(events)} events scraped and stored successfully!")
 
 st.divider()
 
 # -------------------------
 # LOAD DATA
 # -------------------------
-
 def load_data():
     try:
         wb = openpyxl.load_workbook("events.xlsx")
@@ -77,9 +67,8 @@ def load_data():
 df = load_data()
 
 # -------------------------
-# ANALYTICS
+# ANALYTICS SECTION
 # -------------------------
-
 if not df.empty:
 
     st.subheader("📊 Dashboard Analytics")
@@ -90,10 +79,12 @@ if not df.empty:
         st.metric("Total Events", len(df))
 
     with col2:
-        st.metric("Active Events", len(df[df["status"] == "Active"]))
+        active_count = len(df[df["status"] == "Active"])
+        st.metric("Active Events", active_count)
 
     with col3:
-        st.metric("Expired Events", len(df[df["status"] == "Expired"]))
+        expired_count = len(df[df["status"] == "Expired"])
+        st.metric("Expired Events", expired_count)
 
     st.divider()
 
@@ -113,4 +104,4 @@ if not df.empty:
     st.dataframe(df, use_container_width=True)
 
 else:
-    st.warning("No data available.")
+    st.info("No data found. Please scrape events first.")
